@@ -301,6 +301,73 @@ const searchByTitle = async (req, res) => {
   }
 };
 
+// 10. GET /api/notes/search/content — Search in content only
+const searchByContent = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query 'q' is required",
+        data: null,
+      });
+    }
+
+    const notes = await Note.find({
+      content: { $regex: q, $options: "i" },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Content search results for: ${q}`,
+      count: notes.length,
+      data: notes,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
+// 11. GET /api/notes/search/all — Search in title AND content
+const searchAll = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query 'q' is required",
+        data: null,
+      });
+    }
+
+    const notes = await Note.find({
+      $or: [
+        { title: { $regex: q, $options: "i" } },
+        { content: { $regex: q, $options: "i" } },
+      ],
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Search results for: ${q}`,
+      count: notes.length,
+      data: notes,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
 module.exports = {
   createNote,
   createBulkNotes,
@@ -311,4 +378,6 @@ module.exports = {
   deleteNote,
   deleteBulkNotes,
   searchByTitle,
+  searchByContent,
+  searchAll,
 };
