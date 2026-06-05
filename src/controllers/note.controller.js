@@ -368,6 +368,310 @@ const searchAll = async (req, res) => {
   }
 };
 
+// 12. GET /api/notes/filter-sort — Filter + Sort
+const filterAndSort = async (req, res) => {
+  try {
+    const { category, isPinned, sortBy, order } = req.query;
+
+    const filter = {};
+    if (category) filter.category = category;
+    if (isPinned !== undefined) filter.isPinned = isPinned === "true";
+
+    const allowedSortFields = ["title", "createdAt", "updatedAt", "category"];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    const notes = await Note.find(filter).sort({ [sortField]: sortOrder });
+
+    res.status(200).json({
+      success: true,
+      message: "Notes fetched successfully",
+      count: notes.length,
+      data: notes,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
+// 13. GET /api/notes/filter-paginate — Filter + Paginate
+const filterAndPaginate = async (req, res) => {
+  try {
+    const { category, isPinned, page, limit } = req.query;
+
+    const filter = {};
+    if (category) filter.category = category;
+    if (isPinned !== undefined) filter.isPinned = isPinned === "true";
+
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await Note.countDocuments(filter);
+    const notes = await Note.find(filter).skip(skip).limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: "Notes fetched successfully",
+      data: notes,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasNextPage: pageNum < Math.ceil(total / limitNum),
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
+// 14. GET /api/notes/sort-paginate — Sort + Paginate
+const sortAndPaginate = async (req, res) => {
+  try {
+    const { sortBy, order, page, limit } = req.query;
+
+    const allowedSortFields = ["title", "createdAt", "updatedAt", "category"];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await Note.countDocuments();
+    const notes = await Note.find()
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: "Notes fetched successfully",
+      data: notes,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasNextPage: pageNum < Math.ceil(total / limitNum),
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
+// 15. GET /api/notes/search-filter — Search + Filter
+const searchAndFilter = async (req, res) => {
+  try {
+    const { q, category, isPinned } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query 'q' is required",
+        data: null,
+      });
+    }
+
+    const filter = {};
+    filter.$or = [
+      { title: { $regex: q, $options: "i" } },
+      { content: { $regex: q, $options: "i" } },
+    ];
+    if (category) filter.category = category;
+    if (isPinned !== undefined) filter.isPinned = isPinned === "true";
+
+    const notes = await Note.find(filter);
+
+    res.status(200).json({
+      success: true,
+      message: `Search results for: ${q}`,
+      count: notes.length,
+      data: notes,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
+// 16. GET /api/notes/search-sort-paginate — Search + Sort + Paginate
+const searchSortPaginate = async (req, res) => {
+  try {
+    const { q, sortBy, order, page, limit } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query 'q' is required",
+        data: null,
+      });
+    }
+
+    const filter = {
+      $or: [
+        { title: { $regex: q, $options: "i" } },
+        { content: { $regex: q, $options: "i" } },
+      ],
+    };
+
+    const allowedSortFields = ["title", "createdAt", "updatedAt", "category"];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await Note.countDocuments(filter);
+    const notes = await Note.find(filter)
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: `Search results for: ${q}`,
+      data: notes,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasNextPage: pageNum < Math.ceil(total / limitNum),
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
+// 17. GET /api/notes/filter-sort-paginate — Filter + Sort + Paginate
+const filterSortPaginate = async (req, res) => {
+  try {
+    const { category, isPinned, sortBy, order, page, limit } = req.query;
+
+    const filter = {};
+    if (category) filter.category = category;
+    if (isPinned !== undefined) filter.isPinned = isPinned === "true";
+
+    const allowedSortFields = ["title", "createdAt", "updatedAt", "category"];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await Note.countDocuments(filter);
+    const notes = await Note.find(filter)
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: "Notes fetched successfully",
+      data: notes,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasNextPage: pageNum < Math.ceil(total / limitNum),
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
+// 18. GET /api/notes/query — Master endpoint (everything at once)
+const masterQuery = async (req, res) => {
+  try {
+    const { q, category, isPinned, sortBy, order, page, limit } = req.query;
+
+    // Step 1 — Build filter
+    const filter = {};
+
+    if (q) {
+      filter.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { content: { $regex: q, $options: "i" } },
+      ];
+    }
+    if (category) filter.category = category;
+    if (isPinned !== undefined) filter.isPinned = isPinned === "true";
+
+    // Step 2 — Sorting
+    const allowedSortFields = ["title", "createdAt", "updatedAt", "category"];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    // Step 3 — Pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Step 4 — Execute
+    const total = await Note.countDocuments(filter);
+    const notes = await Note.find(filter)
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: "Notes fetched successfully",
+      data: notes,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasNextPage: pageNum < Math.ceil(total / limitNum),
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+};
+
 module.exports = {
   createNote,
   createBulkNotes,
@@ -380,4 +684,11 @@ module.exports = {
   searchByTitle,
   searchByContent,
   searchAll,
+  filterAndSort,
+  filterAndPaginate,
+  sortAndPaginate,
+  searchAndFilter,
+  searchSortPaginate,
+  filterSortPaginate,
+  masterQuery,
 };
